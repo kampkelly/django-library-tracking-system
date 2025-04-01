@@ -1,3 +1,5 @@
+import datetime
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from .models import Author, Book, Member, Loan
@@ -13,6 +15,9 @@ class AuthorViewSet(viewsets.ModelViewSet):
 class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    
+    def get_queryset(self):
+        return Book.objects.select_related('author').prefetch_related('genres')
 
     @action(detail=True, methods=['post'])
     def loan(self, request, pk=None):
@@ -52,3 +57,21 @@ class MemberViewSet(viewsets.ModelViewSet):
 class LoanViewSet(viewsets.ModelViewSet):
     queryset = Loan.objects.all()
     serializer_class = LoanSerializer
+    
+    @action(detail=True, methods=['post'])
+    def extend_due_date(self, request, pk=None):
+        loan = self.get_object()
+        
+        if loan.due_date > datetime.date.today():
+            return Response({'status': 'Loan is already overdue'}, status=status.HTTP_403_FORBIDDEN)
+
+        additional_days = request.data['additional_days']
+        if isinstance(additional_days, int):
+            return Response({'status': 'Additional days is not a number'}, status=status.HTTP_400_BAD_REQUEST)
+
+        loan.due_date = loan.due_date + timedelta(days=additional_days)
+        loan.save()
+        loan.refresh_from_db()
+       
+        return Response({'status': 'Loan updated successfully.', 'loan': loan}, status=status.HTTP_200_OK)
+

@@ -1,5 +1,7 @@
+import datetime
 from django.db import models
 from django.contrib.auth.models import User
+from datetime import timedelta
 
 class Author(models.Model):
     first_name = models.CharField(max_length=100)
@@ -40,7 +42,12 @@ class Loan(models.Model):
     member = models.ForeignKey(Member, related_name='loans', on_delete=models.CASCADE)
     loan_date = models.DateField(auto_now_add=True)
     return_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(default=datetime.date.today() + timedelta(days=14))
     is_returned = models.BooleanField(default=False)
+
+    # @property
+    # def due_date(self):
+    #     return self.loan_date + timedelta(days=14)
 
     def __str__(self):
         return f"{self.book.title} loaned to {self.member.user.username}"
